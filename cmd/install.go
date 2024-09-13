@@ -102,7 +102,7 @@ func downloadFile(url string, filePath string) error {
 		return errors.New("HTTP请求失败: " + resp.Status)
 	}
 
-	fmt.Printf("download fileSize: %d\n", resp.ContentLength)
+	// fmt.Printf("download fileSize: %d\n", resp.ContentLength)
 	os.MkdirAll(getGradleHome(), os.ModePerm)
 	// 打开文件用于写入
 	outputFile, err := os.Create(filePath)
@@ -111,9 +111,11 @@ func downloadFile(url string, filePath string) error {
 	}
 	defer outputFile.Close()
 
-	
 	// 将响应体数据复制到文件
-	_, err = io.Copy(outputFile, resp.Body)
+	startTime := time.Now()
+	counter := &WriteCounter{Total: resp.ContentLength}
+	_, err = io.Copy(outputFile, io.TeeReader(resp.Body, counter))
+	fmt.Println(" done: " + time.Since(startTime).String())
 	if err != nil {
 		return err
 	}
@@ -175,4 +177,20 @@ func unzip(src, dest string) error {
 	}
 
 	return nil
+}
+
+type WriteCounter struct {
+	Total    int64
+	Download int64
+}
+
+func (wc *WriteCounter) Write(p []byte) (int, error) {
+	n := len(p)
+	wc.Download += int64(n)
+	wc.PrintProgress()
+	return n, nil
+}
+
+func (wc WriteCounter) PrintProgress() {
+	fmt.Printf("\rDownloading... %d%%   %d/%d", wc.Download*100/wc.Total, wc.Download, wc.Total)
 }
