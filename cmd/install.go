@@ -36,7 +36,7 @@ var installCmd = &cobra.Command{
 			zipUrl = args[0]
 		}
 		if len(zipUrl) > 0 {
-			re, _ := regexp.Compile(`gradle-(.+)-(.+)\.zip$`)
+			re, _ := regexp.Compile(`gradle-(.+)-(all|bin)\.zip$`)
 			infos := re.FindStringSubmatch(zipUrl)
 			if len(infos) != 3 {
 				fmt.Println("URL invalid :", zipUrl)
