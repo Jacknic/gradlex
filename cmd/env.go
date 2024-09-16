@@ -16,8 +16,8 @@ var envCmd = &cobra.Command{
 	Short: "Print env or default",
 	Long:  ` `,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("GRADLE_HOME: ", getGradleHome())
-		fmt.Println("GRADLE_USER_HOME: ", getGradleUserHome())
-		fmt.Println("GRADLE_PROXY: ", getGradleDistProxy())
+		fmt.Println(GRADLE_HOME+":", getGradleHome())
+		fmt.Println(GRADLE_USER_HOME+":", getGradleUserHome())
+		fmt.Println(GRADLE_DIST_PROXY+":", getGradleDistProxy())
 	},
 }
