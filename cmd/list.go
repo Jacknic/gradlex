@@ -54,7 +54,7 @@ func getVersionList(listType string) {
 		return
 	}
 
-	fmt.Printf("fetching Gradle versions... %v\n", resp.ContentLength)
+	// fmt.Printf("fetching Gradle versions... %v\n", resp.ContentLength)
 	lastModified := resp.Header.Get("last-modified")
 	os.MkdirAll(getGradleUserHome(), os.ModePerm)
 	cacheFile := getGradleUserHome() + "/version-all.json"
@@ -70,11 +70,11 @@ func getVersionList(listType string) {
 	modTime, _ := time.Parse(time.RFC1123, lastModified)
 
 	sameSize := info != nil && resp.ContentLength == info.Size() && resp.ContentLength != 0
-	fmt.Printf("lastModified: %s ContentLength: %v => %v \n ", lastModified, resp.ContentLength, info.Size())
+	// fmt.Printf("lastModified: %s ContentLength: %v => %v \n ", lastModified, resp.ContentLength, info.Size())
 	if info != nil && modTime.Before(info.ModTime()) && sameSize {
-		fmt.Println("use cache file")
+		// fmt.Println("use cache file")
 	} else {
-		fmt.Println("fetch new version list")
+		// fmt.Println("fetch new version list")
 		f, err := os.Create(cacheFile)
 		if err != nil {
 			panic(err)
@@ -93,7 +93,8 @@ func getVersionList(listType string) {
 	var versionList []map[string]interface{}
 	err = json.Unmarshal(body, &versionList)
 	if err != nil {
-		fmt.Println("解析JSON时发生错误:", err)
+		fmt.Println("JSON Parse error:", err)
+		return
 	}
 
 	count := 0

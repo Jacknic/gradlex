@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
-	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -56,12 +56,11 @@ var installCmd = &cobra.Command{
 			fmt.Println("use proxy: ", getGradleDistProxy())
 			link = getGradleDistProxy() + zipFileName
 		}
-		timeStart := time.Now()
 
 		linkHash := getLinkMd5(link)
 		linkRawHash := getLinkMd5(linkRaw)
 		zipFilePath := getGradleUserHome() + "/" + linkHash + ".zip"
-		fmt.Println(linkRaw + " download from \n" + link + " to => " + zipFilePath)
+		log.Println(linkRaw + " download from \n" + link + " => save to " + zipFilePath)
 
 		err := downloadFile(link, zipFilePath)
 		if err != nil {
@@ -70,13 +69,13 @@ var installCmd = &cobra.Command{
 
 		// 解压zip文件到指定目录
 		targetDir := getGradleUserHome() + "/wrapper/dists/gradle-" + buildVersion + "-" + buildType + "/" + linkRawHash
-		fmt.Println("unzip to ", targetDir)
+		log.Println("unzip to ", targetDir)
 		unzip(zipFilePath, targetDir)
-		fmt.Println("remove file:", zipFilePath)
+		log.Println("remove file:", zipFilePath)
 		os.Remove(zipFilePath)
 		os.Create(targetDir + "/" + zipFileName + ".lck")
 		os.Create(targetDir + "/" + zipFileName + ".ok")
-		fmt.Println("done: " + time.Since(timeStart).String())
+		log.Println("finish")
 	},
 }
 
@@ -112,10 +111,8 @@ func downloadFile(url string, filePath string) error {
 	defer outputFile.Close()
 
 	// 将响应体数据复制到文件
-	startTime := time.Now()
 	counter := &WriteCounter{Total: resp.ContentLength}
 	_, err = io.Copy(outputFile, io.TeeReader(resp.Body, counter))
-	fmt.Println(" done: " + time.Since(startTime).String())
 	if err != nil {
 		return err
 	}
@@ -192,5 +189,10 @@ func (wc *WriteCounter) Write(p []byte) (int, error) {
 }
 
 func (wc WriteCounter) PrintProgress() {
-	fmt.Printf("\rDownloading... %d%%   %d/%d", wc.Download*100/wc.Total, wc.Download, wc.Total)
+	if done := wc.Download == wc.Total; done {
+		fmt.Printf("\r")
+		log.Printf("Downloaded %d%%   %d/%d\n", wc.Download*100/wc.Total, wc.Download, wc.Total)
+	} else {
+		fmt.Printf("\rDownloading... %d%%   %d/%d", wc.Download*100/wc.Total, wc.Download, wc.Total)
+	}
 }
