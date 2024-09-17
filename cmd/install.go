@@ -102,7 +102,7 @@ func downloadFile(url string, filePath string) error {
 	}
 
 	// fmt.Printf("download fileSize: %d\n", resp.ContentLength)
-	os.MkdirAll(getGradleHome(), os.ModePerm)
+	os.MkdirAll(getGradleUserHome(), os.ModePerm)
 	// 打开文件用于写入
 	outputFile, err := os.Create(filePath)
 	if err != nil {
