@@ -6,7 +6,8 @@ Gradlex 是一个用于 Gradle 下载的工具，可以通过镜像配置加速 
 
 ## 下载安装
 
-下载地址：[https://github.com/Jacknic/gradlex/releases](https://github.com/Jacknic/gradlex/releases)
+下载地址：![GitHub Release](https://img.shields.io/github/v/release/Jacknic/gradlex?include_prereleases&link=https%3A%2F%2Fgithub.com%2FJacknic%2Fgradlex%2Freleases) [https://github.com/Jacknic/gradlex/releases](https://github.com/Jacknic/gradlex/releases) 
+
 
 如果你想在任何路径下都能使用 gradlex 命令，你需要将 gradlex 添加到 PATH 中，否则你只能在 gradlex 文件所在位置打开命令行窗口。
 
