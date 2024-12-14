@@ -21,7 +21,13 @@ Gradlex 是一个用于 Gradle 下载的工具，可以通过镜像配置加速 
 2. 阿里云 [https://mirrors.aliyun.com/macports/distfiles/gradle/](https://mirrors.aliyun.com/macports/distfiles/gradle/)
 3. 华为云 [https://mirrors.huaweicloud.com/gradle/](https://mirrors.huaweicloud.com/gradle/)
 
-### 设置镜像地址环境变量
+
+### 设置镜像地址-配置文件
+
+目前内置了 3 个镜像地址，你可以通过 `gradlex proxy set 0` / `gradle p set 0 到2` 指定镜像地址。与下面的*环境变量*方式互斥，互斥优先级为：配置文件 > 环境变量 > 默认值。一般情况下设置这个就够了。使用 `gradlex proxy ls` 命令可以查看当前镜像地址。
+
+
+### 设置镜像地址-环境变量
 
 你需要设置镜像环境变量 `GRADLE_DIST_PROXY` ，否则 Gradle 包会从**官方或原地址**下载，而不是镜像地址也就没有加速效果。为了方便使用，建议在 **系统环境变量** 中设置环境变量，下方的命令行设置仅对当前窗口有效。
 
