@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -29,7 +30,7 @@ func init() {
 var installCmd = &cobra.Command{
 	Use:   "install",
 	Short: "install gradle",
-	Long:  `gradlex version $version https://github.com/Jacknic/gradlex `,
+	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		// fmt.Printf("args:%v \n", args)
 		if len(args) == 1 {
@@ -111,12 +112,15 @@ func downloadFile(url string, filePath string) error {
 	defer outputFile.Close()
 
 	// 将响应体数据复制到文件
+	startTime := time.Now()
 	counter := &WriteCounter{Total: resp.ContentLength}
 	_, err = io.Copy(outputFile, io.TeeReader(resp.Body, counter))
 	if err != nil {
 		return err
 	}
-	// 写入成功
+	// 计算网络下载速度
+	countSeconds := time.Since(startTime).Seconds()
+	log.Printf("download speed: %.1fs %.2f MB/s\n", countSeconds, float64(counter.Total/1024/1024)/countSeconds)
 	return nil
 }
 
