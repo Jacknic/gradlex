@@ -24,7 +24,7 @@ var linkCmd = &cobra.Command{
 	Short: "link exist gradle version gradlex link /root/.gradle/wrapper/dists/gradle-8.8-all/6gdy1pgp427xkqcjbxw3ylt6h https://services.gradle.org/distributions/gradle-8.3-bin.zip",
 	Long:  `link exist gradle version`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fromPath := args[0]
+		fromPath := strings.Replace(args[0], "\\", "/", -1)
 		toUrl := args[1]
 		// fromPath := "/root/.gradle/wrapper/dists/gradle-8.8-all/6gdy1pgp427xkqcjbxw3ylt6h"
 		// toUrl := "https://services.gradle.org/distributions/gradle-8.3-bin.zip"
