@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -40,7 +41,7 @@ var localCmd = &cobra.Command{
 				}
 				for _, distsInfo := range distsList {
 					path, _ := filepath.Abs(gradleDists + fileInfo.Name() + "/" + distsInfo.Name())
-					fmt.Println(path)
+					fmt.Println(strings.Replace(path, "\\", "/", -1))
 				}
 			}
 		}
