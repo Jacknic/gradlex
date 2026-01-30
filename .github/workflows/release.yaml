@@ -5,8 +5,8 @@ on:
     types: [created]
 
 permissions:
-    contents: write
-    packages: write
+  contents: write
+  packages: write
 
 jobs:
   releases-matrix:
@@ -22,11 +22,19 @@ jobs:
           - goarch: arm64
             goos: windows
     steps:
-    - uses: actions/checkout@v4
-    - uses: wangyoucao577/go-release-action@v1
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        goos: ${{ matrix.goos }}
-        goarch: ${{ matrix.goarch }}
-        binary_name: "gradlex"
-        ldflags: "-s -w"
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Release Binary
+        uses: wangyoucao577/go-release-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          goos: ${{ matrix.goos }}
+          goarch: ${{ matrix.goarch }}
+          binary_name: "gradlex"
+          ldflags: |
+            -s -w
+            -X 'github.com/jacknic/gradlex/cmd.Version=${{ github.ref_name }}'
+            -X 'github.com/jacknic/gradlex/cmd.GitTag=${{ github.ref_name }}'
+            -X 'github.com/jacknic/gradlex/cmd.GitCommit=${{ github.sha }}'
+            -X 'github.com/jacknic/gradlex/cmd.BuildTime=$(TZ=Asia/Shanghai date +'%Y%m%d %H:%M:%S')'
