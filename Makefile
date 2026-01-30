@@ -8,6 +8,7 @@ BUILD_TIME ?= $(shell TZ=Asia/Shanghai date +'%Y%m%d %H:%M:%S')
 
 # ldflags 用于编译时注入版本信息
 LDFLAGS := -ldflags "\
+	-s -w \
 	-X 'github.com/jacknic/gradlex/cmd.Version=$(VERSION)' \
 	-X 'github.com/jacknic/gradlex/cmd.GitTag=$(GIT_TAG)' \
 	-X 'github.com/jacknic/gradlex/cmd.GitCommit=$(GIT_COMMIT)' \
@@ -27,11 +28,11 @@ build-with-version:
 	@echo "Git Tag: $(GIT_TAG)"
 	@echo "Git Commit: $(GIT_COMMIT)"
 	@echo "Build Time: $(BUILD_TIME)"
-	go build $(LDFLAGS) -o gradlex
+	go build $(LDFLAGS)
 
 build-dev:
 	@echo "Building dev version..."
-	go build -o gradlex
+	go build
 
 clean:
 	rm -f gradlex
