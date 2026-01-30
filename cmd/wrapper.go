@@ -16,6 +16,7 @@ var workDir string
 
 func init() {
 	wrapperCmd.Flags().StringVarP(&workDir, "file", "f", ".", "工作目录")
+	wrapperCmd.Aliases = []string{"w"}
 	rootCmd.AddCommand(wrapperCmd)
 }
 
