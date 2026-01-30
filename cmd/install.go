@@ -95,6 +95,9 @@ func downloadFile(url string, filePath string) error {
 	if err != nil {
 		return err
 	}
+	if resp == nil {
+		return errors.New("空的 HTTP 响应")
+	}
 	defer resp.Body.Close()
 
 	// 检查HTTP响应状态码
@@ -193,6 +196,12 @@ func (wc *WriteCounter) Write(p []byte) (int, error) {
 }
 
 func (wc WriteCounter) PrintProgress() {
+	// 如果 Total 不可用（例如服务器未返回 Content-Length），避免除以 0 或负数
+	if wc.Total <= 0 {
+		fmt.Printf("\rDownloading... %d bytes", wc.Download)
+		return
+	}
+
 	if done := wc.Download == wc.Total; done {
 		fmt.Printf("\r")
 		log.Printf("Downloaded %d%%   %d/%d\n", wc.Download*100/wc.Total, wc.Download, wc.Total)
