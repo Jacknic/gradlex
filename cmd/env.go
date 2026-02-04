@@ -20,6 +20,7 @@ var envCmd = &cobra.Command{
 		fmt.Println(GRADLE_HOME+":", getGradleHome())
 		fmt.Println(GRADLE_USER_HOME+":", getGradleUserHome())
 		fmt.Println(GRADLE_DIST_PROXY+":", getGradleDistProxy())
+		fmt.Println("Language:", GetLanguage())
 		jsonConfig, _ := json.MarshalIndent(config, "", " ")
 		fmt.Println("Config:", string(jsonConfig))
 		fmt.Println("Config File Path:", configFilePath)

@@ -23,17 +23,17 @@ var forceDownload bool
 
 func init() {
 	installCmd.Aliases = []string{"i"}
-	installCmd.Flags().StringVarP(&buildVersion, "version", "v", "", "Gradle 版本")
-	installCmd.Flags().StringVarP(&buildType, "type", "t", "all", "Gradle 类型")
-	installCmd.Flags().StringVarP(&zipUrl, "url", "u", "", "下载版本")
-	installCmd.Flags().BoolVarP(&forceDownload, "force", "f", false, "强制下载，即使已安装该版本")
+	installCmd.Flags().StringVarP(&buildVersion, "version", "v", "", "Gradle version")
+	installCmd.Flags().StringVarP(&buildType, "type", "t", "all", "Gradle type")
+	installCmd.Flags().StringVarP(&zipUrl, "url", "u", "", "Download URL")
+	installCmd.Flags().BoolVarP(&forceDownload, "force", "f", false, "Force download even if version is already installed")
 	rootCmd.AddCommand(installCmd)
 }
 
 var installCmd = &cobra.Command{
 	Use:   "install",
 	Short: "install gradle",
-	Long:  `Install Gradle to local cache. Skip download if version already exists (use -f to force).`,
+	Long:  "Install Gradle to local cache. Skip download if version already exists (use -f to force).",
 	Run: func(cmd *cobra.Command, args []string) {
 		// fmt.Printf("args:%v \n", args)
 		if len(args) == 1 {
@@ -43,7 +43,7 @@ var installCmd = &cobra.Command{
 			re, _ := regexp.Compile(`gradle-(.+)-(all|bin)\.zip$`)
 			infos := re.FindStringSubmatch(zipUrl)
 			if len(infos) != 3 {
-				fmt.Println("URL invalid :", zipUrl)
+				fmt.Printf(T("install.url_invalid", "URL invalid: %s")+"\n", zipUrl)
 				return
 			}
 			buildVersion = infos[1]
@@ -66,7 +66,7 @@ func executeGradleInstall(version, distType, downloadUrl string, force bool) {
 	// link := "https://mirrors.cloud.tencent.com/gradle/" + zipFileName
 	link := downloadUrl
 	if len(getGradleDistProxy()) > 0 {
-		fmt.Println("use proxy: ", getGradleDistProxy())
+		fmt.Printf(T("install.use_proxy", "use proxy: %s")+"\n", getGradleDistProxy())
 		link = getGradleDistProxy() + zipFileName
 	}
 
@@ -76,9 +76,9 @@ func executeGradleInstall(version, distType, downloadUrl string, force bool) {
 
 	// 检查是否已安装该版本
 	if !force && isGradleInstalled(targetDir, zipFileName) {
-		fmt.Printf("Gradle %s-%s 已经安装，跳过下载\n", version, distType)
-		fmt.Printf("如需重新下载，请使用 -f/--force 参数\n")
-		fmt.Printf("安装目录: %s\n", targetDir)
+		fmt.Printf(T("install.already_installed", "Gradle %s-%s already installed, skip download")+"\n", version, distType)
+		fmt.Printf(T("install.force_hint", "Use -f/--force flag to re-download")+"\n")
+		fmt.Printf(T("install.install_dir", "Install directory: %s")+"\n", targetDir)
 		return
 	}
 

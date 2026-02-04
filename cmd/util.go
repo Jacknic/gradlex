@@ -17,6 +17,7 @@ const GRADLE_DIST_PROXY = "GRADLE_DIST_PROXY"
 
 type GradleConfig struct {
 	GradleDistProxy string `json:"gradle_dist_proxy"`
+	Language        string `json:"language"`
 }
 
 var config *GradleConfig

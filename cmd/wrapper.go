@@ -16,8 +16,8 @@ var workDir string
 var wrapperForce bool
 
 func init() {
-	wrapperCmd.Flags().StringVarP(&workDir, "path", "p", ".", "工作目录")
-	wrapperCmd.Flags().BoolVarP(&wrapperForce, "force", "f", false, "强制下载，即使已安装该版本")
+	wrapperCmd.Flags().StringVarP(&workDir, "path", "p", ".", "Working directory")
+	wrapperCmd.Flags().BoolVarP(&wrapperForce, "force", "f", false, "Force download even if version is already installed")
 	wrapperCmd.Aliases = []string{"w"}
 	rootCmd.AddCommand(wrapperCmd)
 }
@@ -25,12 +25,12 @@ func init() {
 var wrapperCmd = &cobra.Command{
 	Use:   "wrapper",
 	Short: "parse gradle-wrapper.properties and download gradle",
-	Long:  `Parse gradle-wrapper.properties to extract gradle version and download URL, then download and install gradle. Skip download if version already exists (use -f to force).`,
+	Long:  "Parse gradle-wrapper.properties to extract gradle version and download URL, then download and install gradle. Skip download if version already exists (use -f to force).",
 	Run: func(cmd *cobra.Command, args []string) {
 		// 查找 gradle-wrapper.properties 文件
 		wrapperPropertiesPath := findWrapperProperties(workDir)
 		if wrapperPropertiesPath == "" {
-			fmt.Printf("Error: 未找到 gradle-wrapper.properties 文件 (工作目录: %s)\n", workDir)
+			fmt.Printf(T("wrapper.not_found", "Error: gradle-wrapper.properties file not found (working directory: %s)")+"\n", workDir)
 			return
 		}
 
@@ -44,7 +44,7 @@ var wrapperCmd = &cobra.Command{
 		}
 
 		if distributionUrl == "" {
-			fmt.Println("Error: 未找到 distributionUrl 配置")
+			fmt.Println(T("wrapper.no_distribution", "Error: distributionUrl not found"))
 			return
 		}
 
@@ -54,7 +54,7 @@ var wrapperCmd = &cobra.Command{
 		re, _ := regexp.Compile(`gradle-(.+)-(all|bin)\.zip`)
 		matches := re.FindStringSubmatch(distributionUrl)
 		if len(matches) < 3 {
-			fmt.Printf("Error: 无法从 URL 提取版本信息: %s\n", distributionUrl)
+			fmt.Printf(T("wrapper.parse_error", "Cannot extract version information from URL: %s")+"\n", distributionUrl)
 			return
 		}
 

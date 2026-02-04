@@ -45,16 +45,16 @@ func init() {
 	updateCmd.Aliases = []string{"upgrade", "u"}
 	rootCmd.AddCommand(updateCmd)
 
-	updateCmd.Flags().BoolVarP(&updateConfig.CheckOnly, "check", "c", false, "仅检查更新，不执行升级")
-	updateCmd.Flags().BoolVarP(&updateConfig.Force, "force", "f", false, "强制升级，即使已经是最新版本")
-	updateCmd.Flags().BoolVarP(&updateConfig.PreRelease, "pre-release", "p", false, "包含预发布版本")
-	updateCmd.Flags().StringVar(&updateConfig.InstallScript, "script", "", "指定安装脚本路径（默认自动检测）")
+	updateCmd.Flags().BoolVarP(&updateConfig.CheckOnly, "check", "c", false, "Check updates only, do not perform upgrade")
+	updateCmd.Flags().BoolVarP(&updateConfig.Force, "force", "f", false, "Force upgrade even if already up to date")
+	updateCmd.Flags().BoolVarP(&updateConfig.PreRelease, "pre-release", "p", false, "Include pre-release versions")
+	updateCmd.Flags().StringVar(&updateConfig.InstallScript, "script", "", "Specify installation script path (default auto-detect)")
 }
 
 var updateCmd = &cobra.Command{
 	Use:   "update",
-	Short: "检查并升级到最新版本",
-	Long:  `检查 GitHub Releases 上的最新版本，如果发现新版本则执行升级操作。`,
+	Short: "check and upgrade to latest version",
+	Long:  "Check latest version on GitHub Releases and upgrade if new version is available.",
 	Run: func(cmd *cobra.Command, args []string) {
 		runUpdate(updateConfig)
 	},
@@ -65,33 +65,33 @@ func runUpdate(config UpdateConfig) error {
 	// 获取当前版本
 	currentVersion := Version
 	if currentVersion == "dev" && !config.Force {
-		fmt.Println("当前是开发版本，无法检查更新")
+		fmt.Println(T("update.dev_version", "当前是开发版本，无法检查更新"))
 		return nil
 	}
 
-	fmt.Printf("当前版本: %s\n", currentVersion)
+	fmt.Printf(T("update.current_version", "Current version: %s")+"\n", currentVersion)
 
 	// 获取最新版本信息
 	latestRelease, err := getLatestRelease(config.PreRelease)
 	if err != nil {
-		return fmt.Errorf("获取最新版本失败: %w", err)
+		return fmt.Errorf(T("update.fetch_failed", "Failed to fetch latest version: %w"), err)
 	}
 
-	fmt.Printf("最新版本: %s\n", latestRelease.TagName)
+	fmt.Printf(T("update.latest_version", "Latest version: %s")+"\n", latestRelease.TagName)
 
 	// 比较版本，使用 CompareVersions 进行语义化版本比较
 	if !config.Force && CompareVersions(currentVersion, latestRelease.TagName) >= 0 {
-		fmt.Println("已经是最新版本！")
+		fmt.Println(T("update.uptodate", "Already up to date!"))
 		return nil
 	}
 
 	if !config.CheckOnly {
 		// 执行升级
-		fmt.Println("\n开始升级...")
+		fmt.Println(T("update.checking", "\nStarting upgrade..."))
 		if err := performUpdate(config); err != nil {
-			return fmt.Errorf("升级失败: %w", err)
+			return fmt.Errorf(T("update.error", "Upgrade failed: %w"), err)
 		}
-		fmt.Println("\n升级完成！请重启 gradlex 以使用新版本。")
+		fmt.Println(T("update.done", "\nUpgrade completed! Please restart gradlex to use the new version."))
 	}
 
 	return nil

@@ -50,7 +50,7 @@ func checkUpdateInBackground() {
 
 	// 比较版本，使用 CompareVersions 进行语义化版本比较
 	if CompareVersions(Version, latestRelease.TagName) < 0 {
-		fmt.Printf("\n发现新版本: %s (当前: %s)\n", latestRelease.TagName, Version)
-		fmt.Printf("使用 'gradlex update' 进行升级\n")
+		fmt.Printf(T("version.new_version", "\nNew version available: %s (current: %s")+"\n", latestRelease.TagName, Version)
+		fmt.Printf(T("version.update_hint", "Use 'gradlex update' to upgrade")+"\n")
 	}
 }
