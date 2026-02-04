@@ -2,10 +2,23 @@
 set -euo pipefail
 
 REPO="Jacknic/gradlex"
-INSTALL_DIR="/usr/local/bin"
+INSTALL_DIR="${INSTALL_DIR:-}"
 TMP_DIR="$(mktemp -d)"
 cleanup() { rm -rf "$TMP_DIR"; }
 trap cleanup EXIT
+
+# 如果未指定安装目录，尝试自动检测
+if [ -z "$INSTALL_DIR" ]; then
+    # 检查 PATH 中是否有 gradlex
+    if command -v gradlex >/dev/null 2>&1; then
+        INSTALLED_PATH=$(command -v gradlex)
+        INSTALL_DIR=$(dirname "$INSTALLED_PATH")
+        echo "检测到已安装的 gradlex 在: $INSTALLED_PATH"
+    else
+        # 默认安装目录
+        INSTALL_DIR="/usr/local/bin"
+    fi
+fi
 
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 ARCH="$(uname -m)"
@@ -65,8 +78,15 @@ else
 fi
 
 if [ -z "$BIN" ]; then
-  echo "gradlex binary not found in archive" >&2
-  exit 1
+    echo "gradlex binary not found in archive" >&2
+    exit 1
+fi
+
+# 检查已安装的版本
+if [ -f "$INSTALL_DIR/gradlex" ]; then
+    EXISTING_VERSION=$("$INSTALL_DIR/gradlex" version 2>/dev/null | grep "Version:" | cut -d':' -f2 | tr -d ' ' || echo "unknown")
+    echo "检测到已安装版本: $EXISTING_VERSION"
+    echo "将覆盖旧版本..."
 fi
 
 echo "Installing gradlex from $BIN to $INSTALL_DIR (may ask for sudo)..."
