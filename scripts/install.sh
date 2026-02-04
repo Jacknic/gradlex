@@ -3,6 +3,7 @@ set -euo pipefail
 
 REPO="Jacknic/gradlex"
 INSTALL_DIR="${INSTALL_DIR:-}"
+INCLUDE_PRERELEASE="${INCLUDE_PRERELEASE:-false}"
 TMP_DIR="$(mktemp -d)"
 cleanup() { rm -rf "$TMP_DIR"; }
 trap cleanup EXIT
@@ -41,8 +42,17 @@ fi
 
 echo "Detected $platform/$arch — searching release asset matching '*${pattern}*'..."
 
-url=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" \
-  | grep "browser_download_url" | grep "${pattern}" | head -n1 | cut -d '"' -f4 || true)
+# 根据是否包含预发布版本选择不同的 API 端点
+if [ "$INCLUDE_PRERELEASE" = "true" ]; then
+    echo "包含预发布版本..."
+    # 获取所有 releases，包括预发布版本
+    releases_json=$(curl -s "https://api.github.com/repos/$REPO/releases")
+    # 提取符合条件的下载 URL
+    url=$(echo "$releases_json" | grep -o '"browser_download_url":"[^"]*' | grep "${pattern}" | head -n1 | cut -d'"' -f4 || true)
+else
+    url=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" \
+      | grep "browser_download_url" | grep "${pattern}" | head -n1 | cut -d '"' -f4 || true)
+fi
 
 if [ -z "$url" ]; then
   echo "No release asset found for pattern: ${pattern}" >&2

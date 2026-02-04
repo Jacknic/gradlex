@@ -169,14 +169,26 @@ func performUpdate(config UpdateConfig) error {
 	// 执行安装脚本
 	fmt.Println("执行安装脚本...")
 	var cmd *exec.Cmd
+	var args []string
 
 	switch runtime.GOOS {
 	case "windows":
 		// Windows 使用 PowerShell
-		cmd = exec.Command("powershell", "-ExecutionPolicy", "Bypass", "-File", scriptFile)
+		args = []string{"powershell", "-ExecutionPolicy", "Bypass", "-File", scriptFile}
+		if config.PreRelease {
+			args = append(args, "-IncludePrerelease")
+		}
+		cmd = exec.Command(args[0], args[1:]...)
 	default:
 		// Unix-like 系统使用 bash
-		cmd = exec.Command("bash", scriptFile)
+		args = []string{"bash", scriptFile}
+		if config.PreRelease {
+			// 设置环境变量
+			cmd = exec.Command("bash", scriptFile)
+			cmd.Env = append(os.Environ(), "INCLUDE_PRERELEASE=true")
+		} else {
+			cmd = exec.Command("bash", scriptFile)
+		}
 	}
 
 	cmd.Stdout = os.Stdout

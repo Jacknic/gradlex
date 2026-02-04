@@ -1,5 +1,6 @@
 Param(
-  [string]$InstallDir = $null
+  [string]$InstallDir = $null,
+  [switch]$IncludePrerelease
 )
 
 # 如果未指定安装目录，尝试自动检测已安装的 gradlex 位置
@@ -16,13 +17,23 @@ if (-not $InstallDir) {
 }
 
 $Repo = 'Jacknic/gradlex'
-$Api = "https://api.github.com/repos/$Repo/releases/latest"
 
-Write-Host "Querying latest release..."
-$release = Invoke-RestMethod -UseBasicParsing -Uri $Api
-$asset = $release.assets | Where-Object { $_.browser_download_url -match 'windows-amd64' } | Select-Object -First 1
+# 根据是否包含预发布版本选择不同的 API 端点
+if ($IncludePrerelease) {
+    Write-Host "包含预发布版本..."
+    $Api = "https://api.github.com/repos/$Repo/releases"
+    Write-Host "Querying all releases..."
+    $releases = Invoke-RestMethod -UseBasicParsing -Uri $Api
+    $asset = $releases | ForEach-Object { $_.assets } | Where-Object { $_.browser_download_url -match 'windows-amd64' } | Select-Object -First 1
+} else {
+    $Api = "https://api.github.com/repos/$Repo/releases/latest"
+    Write-Host "Querying latest release..."
+    $release = Invoke-RestMethod -UseBasicParsing -Uri $Api
+    $asset = $release.assets | Where-Object { $_.browser_download_url -match 'windows-amd64' } | Select-Object -First 1
+}
+
 if (-not $asset) {
-    Write-Error "No windows-amd64 asset found in latest release"
+    Write-Error "No windows-amd64 asset found in release"
     exit 1
 }
 
