@@ -24,7 +24,7 @@ curl -fsSL https://raw.githubusercontent.com/Jacknic/gradlex/master/scripts/inst
 #### Windows (PowerShell)
 
 ```powershell
-Invoke-WebRequest -Uri https://raw.githubusercontent.com/Jacknic/gradlex/master/scripts/install-windows.ps1 -OutFile install.ps1; .\install.ps1
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/Jacknic/gradlex/master/scripts/install-windows.ps1 -OutFile install.ps1; .\install.ps1; del install.ps1
 ```
 
 ### 手动命令行下载
