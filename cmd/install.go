@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -18,19 +19,21 @@ import (
 var buildVersion string
 var buildType string
 var zipUrl string
+var forceDownload bool
 
 func init() {
 	installCmd.Aliases = []string{"i"}
 	installCmd.Flags().StringVarP(&buildVersion, "version", "v", "", "Gradle 版本")
 	installCmd.Flags().StringVarP(&buildType, "type", "t", "all", "Gradle 类型")
 	installCmd.Flags().StringVarP(&zipUrl, "url", "u", "", "下载版本")
+	installCmd.Flags().BoolVarP(&forceDownload, "force", "f", false, "强制下载，即使已安装该版本")
 	rootCmd.AddCommand(installCmd)
 }
 
 var installCmd = &cobra.Command{
 	Use:   "install",
 	Short: "install gradle",
-	Long:  ``,
+	Long:  `Install Gradle to local cache. Skip download if version already exists (use -f to force).`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// fmt.Printf("args:%v \n", args)
 		if len(args) == 1 {
@@ -60,6 +63,16 @@ var installCmd = &cobra.Command{
 
 		linkHash := getLinkMd5(link)
 		linkRawHash := getLinkMd5(linkRaw)
+		targetDir := getGradleUserHome() + "/wrapper/dists/gradle-" + buildVersion + "-" + buildType + "/" + linkRawHash
+
+		// 检查是否已安装该版本
+		if !forceDownload && isGradleInstalled(targetDir, zipFileName) {
+			fmt.Printf("Gradle %s-%s 已经安装，跳过下载\n", buildVersion, buildType)
+			fmt.Printf("如需重新下载，请使用 -f/--force 参数\n")
+			fmt.Printf("安装目录: %s\n", targetDir)
+			return
+		}
+
 		zipFilePath := getGradleUserHome() + "/" + linkHash + ".zip"
 		log.Println(linkRaw + " download from \n" + link + " => save to " + zipFilePath)
 
@@ -69,7 +82,6 @@ var installCmd = &cobra.Command{
 		}
 
 		// 解压zip文件到指定目录
-		targetDir := getGradleUserHome() + "/wrapper/dists/gradle-" + buildVersion + "-" + buildType + "/" + linkRawHash
 		log.Println("unzip to ", targetDir)
 		unzip(zipFilePath, targetDir)
 		log.Println("remove file:", zipFilePath)
@@ -78,6 +90,35 @@ var installCmd = &cobra.Command{
 		os.Create(targetDir + "/" + zipFileName + ".ok")
 		log.Println("finish")
 	},
+}
+
+// isGradleInstalled 检查指定的 Gradle 版本是否已安装
+func isGradleInstalled(targetDir, zipFileName string) bool {
+	// 检查目标目录是否存在
+	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+		return false
+	}
+
+	// 检查 .ok 文件是否存在（表示安装完成）
+	okFile := targetDir + "/" + zipFileName + ".ok"
+	if _, err := os.Stat(okFile); os.IsNotExist(err) {
+		return false
+	}
+
+	// 检查是否有实际的 Gradle 内容
+	entries, err := os.ReadDir(targetDir)
+	if err != nil {
+		return false
+	}
+
+	// 目录应该包含 gradle-x.y.z 子目录
+	for _, entry := range entries {
+		if entry.IsDir() && strings.HasPrefix(entry.Name(), "gradle-") {
+			return true
+		}
+	}
+
+	return false
 }
 
 // 下载文件
