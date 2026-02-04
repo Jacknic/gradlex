@@ -32,5 +32,25 @@ var versionCmd = &cobra.Command{
 		fmt.Println("Git Tag: " + GitTag)
 		fmt.Println("Git Commit: " + GitCommit)
 		fmt.Println("Build Time: " + BuildTime)
+		
+		// 检查更新提示（非开发版本）
+		if Version != "dev" {
+			checkUpdateInBackground()
+		}
 	},
+}
+
+// checkUpdateInBackground 在后台检查更新
+func checkUpdateInBackground() {
+	latestRelease, err := getLatestRelease(false)
+	if err != nil {
+		// 静默失败，不影响版本输出
+		return
+	}
+	
+	// 比较版本
+	if Version != latestRelease.TagName {
+		fmt.Printf("\n发现新版本: %s (当前: %s)\n", latestRelease.TagName, Version)
+		fmt.Printf("使用 'gradlex update' 进行升级\n")
+	}
 }
