@@ -79,8 +79,8 @@ func runUpdate(config UpdateConfig) error {
 
 	fmt.Printf("最新版本: %s\n", latestRelease.TagName)
 
-	// 比较版本
-	if !config.Force && currentVersion == latestRelease.TagName {
+	// 比较版本，使用 CompareVersions 进行语义化版本比较
+	if !config.Force && CompareVersions(currentVersion, latestRelease.TagName) >= 0 {
 		fmt.Println("已经是最新版本！")
 		return nil
 	}
@@ -226,10 +226,35 @@ func downloadInstallScript(url, filepath string) error {
 
 // CompareVersions 比较两个版本号
 // 返回: -1 表示 v1 < v2, 0 表示 v1 == v2, 1 表示 v1 > v2
+// 支持预发布版本号，如: 0.1.2-alpha01, 0.1.2-alpha02
 func CompareVersions(v1, v2 string) int {
 	v1 = strings.TrimPrefix(v1, "v")
 	v2 = strings.TrimPrefix(v2, "v")
 
+	// 分离版本号和预发布标签
+	v1Base, v1Prerelease := splitVersion(v1)
+	v2Base, v2Prerelease := splitVersion(v2)
+
+	// 比较基础版本号
+	baseCompare := compareNumericVersion(v1Base, v2Base)
+	if baseCompare != 0 {
+		return baseCompare
+	}
+
+	// 基础版本相同，比较预发布标签
+	return comparePrerelease(v1Prerelease, v2Prerelease)
+}
+
+// splitVersion 分离版本号和预发布标签
+func splitVersion(version string) (base, prerelease string) {
+	if idx := strings.Index(version, "-"); idx != -1 {
+		return version[:idx], version[idx+1:]
+	}
+	return version, ""
+}
+
+// compareNumericVersion 比较数字版本号部分
+func compareNumericVersion(v1, v2 string) int {
 	parts1 := strings.Split(v1, ".")
 	parts2 := strings.Split(v2, ".")
 
@@ -253,6 +278,33 @@ func CompareVersions(v1, v2 string) int {
 		if n1 > n2 {
 			return 1
 		}
+	}
+
+	return 0
+}
+
+// comparePrerelease 比较预发布标签
+// 空字符串（正式版本）大于任何预发布版本
+func comparePrerelease(p1, p2 string) int {
+	// 如果两个都没有预发布标签，相等
+	if p1 == "" && p2 == "" {
+		return 0
+	}
+	// 如果 p1 没有预发布标签（正式版本），p1 更大
+	if p1 == "" {
+		return 1
+	}
+	// 如果 p2 没有预发布标签（正式版本），p2 更大
+	if p2 == "" {
+		return -1
+	}
+
+	// 都有预发布标签，字符串比较
+	if p1 < p2 {
+		return -1
+	}
+	if p1 > p2 {
+		return 1
 	}
 
 	return 0

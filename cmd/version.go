@@ -47,9 +47,9 @@ func checkUpdateInBackground() {
 		// 静默失败，不影响版本输出
 		return
 	}
-	
-	// 比较版本
-	if Version != latestRelease.TagName {
+
+	// 比较版本，使用 CompareVersions 进行语义化版本比较
+	if CompareVersions(Version, latestRelease.TagName) < 0 {
 		fmt.Printf("\n发现新版本: %s (当前: %s)\n", latestRelease.TagName, Version)
 		fmt.Printf("使用 'gradlex update' 进行升级\n")
 	}
