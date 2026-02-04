@@ -54,42 +54,50 @@ var installCmd = &cobra.Command{
 		if len(zipUrl) > 0 {
 			linkRaw = zipUrl
 		}
-		// link := "https://mirrors.cloud.tencent.com/gradle/" + zipFileName
-		link := linkRaw
-		if len(getGradleDistProxy()) > 0 {
-			fmt.Println("use proxy: ", getGradleDistProxy())
-			link = getGradleDistProxy() + zipFileName
-		}
 
-		linkHash := getLinkMd5(link)
-		linkRawHash := getLinkMd5(linkRaw)
-		targetDir := getGradleUserHome() + "/wrapper/dists/gradle-" + buildVersion + "-" + buildType + "/" + linkRawHash
-
-		// 检查是否已安装该版本
-		if !forceDownload && isGradleInstalled(targetDir, zipFileName) {
-			fmt.Printf("Gradle %s-%s 已经安装，跳过下载\n", buildVersion, buildType)
-			fmt.Printf("如需重新下载，请使用 -f/--force 参数\n")
-			fmt.Printf("安装目录: %s\n", targetDir)
-			return
-		}
-
-		zipFilePath := getGradleUserHome() + "/" + linkHash + ".zip"
-		log.Println(linkRaw + " download from \n" + link + " => save to " + zipFilePath)
-
-		err := downloadFile(link, zipFilePath)
-		if err != nil {
-			panic(err)
-		}
-
-		// 解压zip文件到指定目录
-		log.Println("unzip to ", targetDir)
-		unzip(zipFilePath, targetDir)
-		log.Println("remove file:", zipFilePath)
-		os.Remove(zipFilePath)
-		os.Create(targetDir + "/" + zipFileName + ".lck")
-		os.Create(targetDir + "/" + zipFileName + ".ok")
-		log.Println("finish")
+		executeGradleInstall(buildVersion, buildType, linkRaw, forceDownload)
 	},
+}
+
+// executeGradleInstall 执行 Gradle 安装的通用逻辑
+func executeGradleInstall(version, distType, downloadUrl string, force bool) {
+	zipFileName := fmt.Sprintf("gradle-%s-%s.zip", version, distType)
+
+	// link := "https://mirrors.cloud.tencent.com/gradle/" + zipFileName
+	link := downloadUrl
+	if len(getGradleDistProxy()) > 0 {
+		fmt.Println("use proxy: ", getGradleDistProxy())
+		link = getGradleDistProxy() + zipFileName
+	}
+
+	linkHash := getLinkMd5(link)
+	downloadUrlHash := getLinkMd5(downloadUrl)
+	targetDir := getGradleUserHome() + "/wrapper/dists/gradle-" + version + "-" + distType + "/" + downloadUrlHash
+
+	// 检查是否已安装该版本
+	if !force && isGradleInstalled(targetDir, zipFileName) {
+		fmt.Printf("Gradle %s-%s 已经安装，跳过下载\n", version, distType)
+		fmt.Printf("如需重新下载，请使用 -f/--force 参数\n")
+		fmt.Printf("安装目录: %s\n", targetDir)
+		return
+	}
+
+	zipFilePath := getGradleUserHome() + "/" + linkHash + ".zip"
+	log.Println(downloadUrl + " download from \n" + link + " => save to " + zipFilePath)
+
+	err := downloadFile(link, zipFilePath)
+	if err != nil {
+		panic(err)
+	}
+
+	// 解压zip文件到指定目录
+	log.Println("unzip to ", targetDir)
+	unzip(zipFilePath, targetDir)
+	log.Println("remove file:", zipFilePath)
+	os.Remove(zipFilePath)
+	os.Create(targetDir + "/" + zipFileName + ".lck")
+	os.Create(targetDir + "/" + zipFileName + ".ok")
+	log.Println("finish")
 }
 
 // isGradleInstalled 检查指定的 Gradle 版本是否已安装

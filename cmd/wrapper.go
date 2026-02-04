@@ -13,9 +13,11 @@ import (
 )
 
 var workDir string
+var wrapperForce bool
 
 func init() {
-	wrapperCmd.Flags().StringVarP(&workDir, "file", "f", ".", "工作目录")
+	wrapperCmd.Flags().StringVarP(&workDir, "path", "p", ".", "工作目录")
+	wrapperCmd.Flags().BoolVarP(&wrapperForce, "force", "f", false, "强制下载，即使已安装该版本")
 	wrapperCmd.Aliases = []string{"w"}
 	rootCmd.AddCommand(wrapperCmd)
 }
@@ -23,7 +25,7 @@ func init() {
 var wrapperCmd = &cobra.Command{
 	Use:   "wrapper",
 	Short: "parse gradle-wrapper.properties and download gradle",
-	Long:  `Parse gradle-wrapper.properties to extract gradle version and download URL, then download and install gradle`,
+	Long:  `Parse gradle-wrapper.properties to extract gradle version and download URL, then download and install gradle. Skip download if version already exists (use -f to force).`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// 查找 gradle-wrapper.properties 文件
 		wrapperPropertiesPath := findWrapperProperties(workDir)
@@ -61,13 +63,8 @@ var wrapperCmd = &cobra.Command{
 
 		log.Printf("Extracted version: %s, type: %s\n", version, distType)
 
-		// 调用 install 命令下载
-		buildVersion = version
-		buildType = distType
-		zipUrl = distributionUrl
-
 		// 执行下载和安装
-		executeInstall(distributionUrl)
+		executeGradleInstall(version, distType, distributionUrl, wrapperForce)
 	},
 }
 
@@ -135,48 +132,4 @@ func parseWrapperProperties(filePath string) (string, error) {
 	}
 
 	return "", nil
-}
-
-// executeInstall 执行安装逻辑
-func executeInstall(downloadUrl string) {
-	// 使用镜像或直接下载
-	link := downloadUrl
-	if len(getGradleDistProxy()) > 0 {
-		fmt.Println("use proxy: ", getGradleDistProxy())
-		// 从原始 URL 提取文件名
-		re, _ := regexp.Compile(`gradle-(.+)-(all|bin)\.zip$`)
-		matches := re.FindStringSubmatch(downloadUrl)
-		if len(matches) >= 0 {
-			zipFileName := fmt.Sprintf("gradle-%s-%s.zip", buildVersion, buildType)
-			link = getGradleDistProxy() + zipFileName
-		}
-	}
-
-	linkHash := getLinkMd5(downloadUrl)
-	zipFilePath := getGradleUserHome() + "/" + linkHash + ".zip"
-	log.Println(downloadUrl + " download from \n" + link + " => save to " + zipFilePath)
-
-	err := downloadFile(link, zipFilePath)
-	if err != nil {
-		fmt.Printf("Error: 下载文件失败: %v\n", err)
-		return
-	}
-
-	// 解压zip文件到指定目录
-	targetDir := getGradleUserHome() + "/wrapper/dists/gradle-" + buildVersion + "-" + buildType + "/" + linkHash
-	log.Println("unzip to ", targetDir)
-	err = unzip(zipFilePath, targetDir)
-	if err != nil {
-		fmt.Printf("Error: 解压文件失败: %v\n", err)
-		os.Remove(zipFilePath)
-		return
-	}
-
-	log.Println("remove file:", zipFilePath)
-	os.Remove(zipFilePath)
-	
-	zipFileName := fmt.Sprintf("gradle-%s-%s.zip", buildVersion, buildType)
-	os.Create(targetDir + "/" + zipFileName + ".lck")
-	os.Create(targetDir + "/" + zipFileName + ".ok")
-	log.Println("finish")
 }
