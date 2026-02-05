@@ -1,4 +1,4 @@
-Param(
+﻿Param(
   [string]$InstallDir = $null,
   [switch]$IncludePrerelease
 )
@@ -58,8 +58,8 @@ if (-not $bin) {
 
 # 检查安装目录是否已存在
 $existingVersion = $null
+$existingPath = Join-Path $InstallDir 'gradlex.exe'
 if (Test-Path $InstallDir) {
-    $existingPath = Join-Path $InstallDir 'gradlex.exe'
     if (Test-Path $existingPath) {
         try {
             $existingVersion = & $existingPath version 2>&1 | Select-String "Version:" | ForEach-Object { $_.ToString().Split(':')[1].Trim() }
@@ -68,11 +68,53 @@ if (Test-Path $InstallDir) {
         } catch {
             Write-Host "无法读取已安装版本信息，继续安装..."
         }
+
+        # 检查进程是否正在运行
+        $process = Get-Process gradlex -ErrorAction SilentlyContinue
+        if ($process) {
+            Write-Host "检测到 gradlex 进程正在运行，尝试终止..."
+            try {
+                Stop-Process -Name gradlex -Force -ErrorAction Stop
+                Start-Sleep -Seconds 2
+                Write-Host "进程已终止"
+            } catch {
+                Write-Host "无法终止进程，请手动关闭 gradlex 后重试"
+                exit 1
+            }
+        }
     }
 }
 
 Write-Host "Installing to $InstallDir"
 New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
-Copy-Item -Path $bin.FullName -Destination (Join-Path $InstallDir 'gradlex.exe') -Force
+
+# 尝试复制文件，如果被占用则重试
+$maxRetries = 3
+$retryDelay = 2
+$success = $false
+
+for ($i = 0; $i -lt $maxRetries; $i++) {
+    try {
+        Copy-Item -Path $bin.FullName -Destination $existingPath -Force -ErrorAction Stop
+        $success = $true
+        break
+    } catch {
+        $errorMessage = $_.Exception.Message
+        if ($errorMessage -match "被.*进程使用|used by another process") {
+            Write-Host "文件被占用，第 $($i + 1) 次尝试失败..."
+            if ($i -lt $maxRetries - 1) {
+                Start-Sleep -Seconds $retryDelay
+            }
+        } else {
+            Write-Host "复制文件出错: $errorMessage"
+            throw
+        }
+    }
+}
+
+if (-not $success) {
+    Write-Error "无法复制文件，请确保 gradlex 未运行后重试"
+    exit 1
+}
 
 Write-Host "Installed gradlex to $InstallDir"
