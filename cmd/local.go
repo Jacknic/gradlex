@@ -29,6 +29,8 @@ var localCmd = &cobra.Command{
 			fmt.Println("read dir error:", err)
 			return
 		}
+
+		var totalSize int64
 		for _, fileInfo := range fileInfoList {
 			// 打印子文件夹列表，包含大小与完整性标记
 			if fileInfo.IsDir() {
@@ -47,6 +49,7 @@ var localCmd = &cobra.Command{
 
 					// 计算目录大小
 					size := dirSize(target)
+					totalSize += size
 
 					// 判断 .ok / .lck 完整性
 					zipFileName := fileInfo.Name() + ".zip"
@@ -63,6 +66,8 @@ var localCmd = &cobra.Command{
 				}
 			}
 		}
+
+		fmt.Printf("\nTotal: %s\n", humanSize(totalSize))
 	},
 }
 
