@@ -36,3 +36,4 @@ build-dev:
 
 clean:
 	rm -f gradlex
+	rm -f gradlex.exe
