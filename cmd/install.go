@@ -60,6 +60,15 @@ var installCmd = &cobra.Command{
 }
 
 // executeGradleInstall 执行 Gradle 安装的通用逻辑
+// Performs the generic Gradle installation logic.
+// 下载指定版本和类型（all 或 bin）的 Gradle 到本地缓存。
+// Downloads the specified Gradle version and type (all or bin) to the local cache.
+// 如果 force 为 false，则跳过已安装的版本。
+// If force is false, skips download if the version is already installed.
+// 对于 bin 类型请求，尝试从现有 all 发行版复制。
+// For bin type requests, attempts to copy from existing all distribution if available.
+// 对于 all 类型安装，自动复制到对应的 bin 路径。
+// For all type installations, automatically copies to the corresponding bin path.
 func executeGradleInstall(version, distType, downloadUrl string, force bool) {
 	zipFileName := fmt.Sprintf("gradle-%s-%s.zip", version, distType)
 
@@ -77,9 +86,16 @@ func executeGradleInstall(version, distType, downloadUrl string, force bool) {
 	// 检查是否已安装该版本
 	if !force && isGradleInstalled(targetDir, zipFileName) {
 		fmt.Printf(T("install.already_installed", "Gradle %s-%s already installed, skip download")+"\n", version, distType)
-		fmt.Printf(T("install.force_hint", "Use -f/--force flag to re-download")+"\n")
+		fmt.Printf(T("install.force_hint", "Use -f/--force flag to re-download") + "\n")
 		fmt.Printf(T("install.install_dir", "Install directory: %s")+"\n", targetDir)
 		return
+	}
+
+	// 如果请求 bin 包但本地已有 all 包，则直接复制 all 到 bin，避免重新下载
+	if distType == "bin" && !isGradleInstalled(targetDir, zipFileName) {
+		if copyBinFromAllDist(version, targetDir) {
+			return
+		}
 	}
 
 	zipFilePath := getGradleUserHome() + "/" + linkHash + ".zip"
@@ -97,10 +113,17 @@ func executeGradleInstall(version, distType, downloadUrl string, force bool) {
 	os.Remove(zipFilePath)
 	os.Create(targetDir + "/" + zipFileName + ".lck")
 	os.Create(targetDir + "/" + zipFileName + ".ok")
+	if distType == "all" {
+		copyAllToBinDist(version, targetDir, downloadUrl)
+	}
 	log.Println("finish")
 }
 
 // isGradleInstalled 检查指定的 Gradle 版本是否已安装
+// Checks if the specified Gradle version is already installed.
+// 验证目标目录存在、.ok 完成标记文件存在且 gradle 包目录存在。
+// Verifies the target directory exists, the .ok completion marker file is present,
+// and the gradle package directory is present.
 func isGradleInstalled(targetDir, zipFileName string) bool {
 	// 检查目标目录是否存在
 	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
@@ -129,7 +152,167 @@ func isGradleInstalled(targetDir, zipFileName string) bool {
 	return false
 }
 
-// 下载文件
+// copyBinFromAllDist 从现有 all 发行版复制到 bin 目标路径
+// Copies an existing installed all distribution to the bin target path.
+// 如果找到该版本的 all 发行版，则复制包目录并在 bin 目标目录中创建锁定和完成标记文件。
+// If the all distribution for the version is found locally, it copies the package directory
+// and creates lock and ok marker files in the bin target directory.
+// 复制成功返回 true，否则返回 false。
+// Returns true if copy succeeds, false otherwise.
+func copyBinFromAllDist(version, targetDir string) bool {
+	sourceDir, ok := findInstalledAllDistDir(version)
+	if !ok {
+		return false
+	}
+
+	// 检查目标 bin 版本是否已安装
+	binZipFileName := fmt.Sprintf("gradle-%s-bin.zip", version)
+	if isGradleInstalled(targetDir, binZipFileName) {
+		log.Printf("Gradle %s-bin already installed at %s", version, targetDir)
+		return true
+	}
+
+	fmt.Printf(T("install.copy_from_all", "Gradle %s-bin not found, copying existing all distribution to bin path")+"\n", version)
+
+	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
+		log.Printf("create bin target dir failed: %v", err)
+		return false
+	}
+
+	sourceEntries, err := os.ReadDir(sourceDir)
+	if err != nil {
+		log.Printf("read all source dir failed: %v", err)
+		return false
+	}
+
+	var sourcePackDir string
+	for _, entry := range sourceEntries {
+		if entry.IsDir() && strings.HasPrefix(entry.Name(), "gradle-") {
+			sourcePackDir = filepath.Join(sourceDir, entry.Name())
+			break
+		}
+	}
+	if sourcePackDir == "" {
+		log.Printf("no gradle package found in all distribution: %s", sourceDir)
+		return false
+	}
+
+	destPackDir := filepath.Join(targetDir, filepath.Base(sourcePackDir))
+	if err := copyDirectory(sourcePackDir, destPackDir); err != nil {
+		log.Printf("copy all distribution to bin failed: %v", err)
+		return false
+	}
+
+	lckPath := filepath.Join(targetDir, fmt.Sprintf("gradle-%s-bin.zip.lck", version))
+	okPath := filepath.Join(targetDir, fmt.Sprintf("gradle-%s-bin.zip.ok", version))
+	if _, err := os.Create(lckPath); err != nil {
+		log.Printf("create lock file failed: %v", err)
+		return false
+	}
+	if _, err := os.Create(okPath); err != nil {
+		log.Printf("create ok file failed: %v", err)
+		return false
+	}
+
+	log.Printf("copied existing all distribution from %s to %s", sourceDir, targetDir)
+	return true
+}
+
+// findInstalledAllDistDir 查找本地缓存中指定版本的 all 发行版目录
+// Searches for an installed all distribution directory
+// 为指定的 Gradle 版本在本地缓存中查找 all 发行版目录。
+// for the specified Gradle version in the local cache.
+// 如果找到，返回目录路径和 true；否则返回空字符串和 false。
+// Returns the path to the directory and true if found, empty string and false otherwise.
+func findInstalledAllDistDir(version string) (string, bool) {
+	baseDir := filepath.Join(getGradleUserHome(), "wrapper", "dists", fmt.Sprintf("gradle-%s-all", version))
+	entries, err := os.ReadDir(baseDir)
+	if err != nil {
+		return "", false
+	}
+
+	zipFileName := fmt.Sprintf("gradle-%s-all.zip", version)
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		candidateDir := filepath.Join(baseDir, entry.Name())
+		if isGradleInstalled(candidateDir, zipFileName) {
+			return candidateDir, true
+		}
+	}
+
+	return "", false
+}
+
+// copyAllToBinDist 复制已安装的 all 发行版到对应的 bin 路径
+// Copies an installed all distribution to the corresponding bin path.
+// 将提供的 URL 中的 -all.zip 替换为 -bin.zip 以生成 bin URL。
+// It replaces -all.zip with -bin.zip in the provided URL to generate the bin URL.
+// 如果 bin 发行版已存在，返回 true 而不进行复制。
+// If the bin distribution already exists, returns true without copying.
+// 复制成功后创建锁定和完成标记文件。
+// Creates lock and ok marker files after successful copy.
+func copyAllToBinDist(version, allTargetDir, allDownloadUrl string) bool {
+	// 将 all 类型的 URL 替换为 bin 类型
+	binDownloadUrl := strings.ReplaceAll(allDownloadUrl, "-all.zip", "-bin.zip")
+	binZipFileName := fmt.Sprintf("gradle-%s-bin.zip", version)
+	binTargetDir := filepath.Join(getGradleUserHome(), "wrapper", "dists", fmt.Sprintf("gradle-%s-bin", version), getLinkMd5(binDownloadUrl))
+
+	if isGradleInstalled(binTargetDir, binZipFileName) {
+		return true
+	}
+
+	fmt.Printf(T("install.copy_all_to_bin", "Copying installed all distribution to %s")+"\n", binTargetDir)
+
+	if err := os.MkdirAll(binTargetDir, os.ModePerm); err != nil {
+		log.Printf("create bin target dir failed: %v", err)
+		return false
+	}
+
+	sourceEntries, err := os.ReadDir(allTargetDir)
+	if err != nil {
+		log.Printf("read all target dir failed: %v", err)
+		return false
+	}
+
+	var sourcePackDir string
+	for _, entry := range sourceEntries {
+		if entry.IsDir() && strings.HasPrefix(entry.Name(), "gradle-") {
+			sourcePackDir = filepath.Join(allTargetDir, entry.Name())
+			break
+		}
+	}
+	if sourcePackDir == "" {
+		log.Printf("no gradle package found in all distribution dir: %s", allTargetDir)
+		return false
+	}
+
+	destPackDir := filepath.Join(binTargetDir, filepath.Base(sourcePackDir))
+	if err := copyDirectory(sourcePackDir, destPackDir); err != nil {
+		log.Printf("copy all distribution to bin failed: %v", err)
+		return false
+	}
+
+	lckPath := filepath.Join(binTargetDir, binZipFileName+".lck")
+	okPath := filepath.Join(binTargetDir, binZipFileName+".ok")
+	if _, err := os.Create(lckPath); err != nil {
+		log.Printf("create bin lock file failed: %v", err)
+		return false
+	}
+	if _, err := os.Create(okPath); err != nil {
+		log.Printf("create bin ok file failed: %v", err)
+		return false
+	}
+
+	log.Printf("copied all distribution from %s to %s", allTargetDir, binTargetDir)
+	return true
+}
+
+// downloadFile 从指定的 URL 下载文件到目标文件路径
+// Downloads a file from the specified URL to the target file path.
+// 设置适当的 HTTP 头部并记录下载进度和速度。
+// It sets appropriate HTTP headers and logs download progress and speed.
 func downloadFile(url string, filePath string) error {
 	client := &http.Client{}
 	req, _ := http.NewRequest("GET", url, nil)
@@ -176,7 +359,10 @@ func downloadFile(url string, filePath string) error {
 	return nil
 }
 
-// 解压zip文件
+// unzip 将 zip 文件解压到目标目录
+// Extracts a zip file to the destination directory.
+// 根据需要创建目录并保留文件权限。
+// It creates directories as needed and preserves file permissions.
 func unzip(src, dest string) error {
 	// 打开zip文件
 	r, err := zip.OpenReader(src)
