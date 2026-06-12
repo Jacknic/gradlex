@@ -106,6 +106,8 @@ var zhTranslations = map[string]string{
 	"install.force_hint":        "如需重新下载，请使用 -f/--force 参数",
 	"install.install_dir":       "安装目录: %s",
 	"install.version_required":  "请指定 Gradle 版本，使用 -v 参数",
+	"install.copy_from_all":     "未找到 Gradle %s-bin，从已安装的 all 发行版复制",
+	"install.copy_all_to_bin":   "正在将 all 发行版复制到 bin 路径: %s",
 
 	// Wrapper 命令
 	"wrapper.not_found":       "错误: 未找到 gradle-wrapper.properties 文件 (工作目录: %s)",
@@ -128,8 +130,8 @@ var zhTranslations = map[string]string{
 
 	// 通用
 	"version_flag":     "Gradle 版本",
-	"type_flag":        "Gradle 类型",
-	"url_flag":         "下载版本",
+	"type_flag":        "Gradle 类型 (all/bin)",
+	"url_flag":         "下载 URL",
 	"force_flag":       "强制下载，即使已安装该版本",
 	"check_flag":       "仅检查更新，不执行升级",
 	"pre_release_flag": "包含预发布版本",
@@ -203,11 +205,11 @@ var enTranslations = map[string]string{
 	"version.update_hint": "Use 'gradlex update' to upgrade\n",
 
 	// Common flags
-	"version_flag":     "Gradle version",
-	"type_flag":        "Gradle type",
-	"url_flag":         "Download URL",
-	"force_flag":       "Force download even if version is already installed",
-	"check_flag":       "Check updates only, do not perform upgrade",
+	"version_flag": "Gradle version",
+	"type_flag":    "Gradle type",
+	"url_flag":     "Download URL",
+	"force_flag":   "Force download even if version is already installed", "install.copy_from_all": "Gradle %s-bin not found, copying from existing all distribution",
+	"install.copy_all_to_bin": "Copying all distribution to bin path: %s", "check_flag": "Check updates only, do not perform upgrade",
 	"pre_release_flag": "Include pre-release versions",
 	"script_flag":      "Specify installation script path (default auto-detect)",
 	"path_flag":        "Working directory",
