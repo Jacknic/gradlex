@@ -32,7 +32,7 @@ var versionCmd = &cobra.Command{
 		fmt.Println("Git Tag: " + GitTag)
 		fmt.Println("Git Commit: " + GitCommit)
 		fmt.Println("Build Time: " + BuildTime)
-		
+
 		// 检查更新提示（非开发版本）
 		if Version != "dev" {
 			checkUpdateInBackground()
@@ -51,6 +51,6 @@ func checkUpdateInBackground() {
 	// 比较版本，使用 CompareVersions 进行语义化版本比较
 	if CompareVersions(Version, latestRelease.TagName) < 0 {
 		fmt.Printf(T("version.new_version", "\nNew version available: %s (current: %s")+"\n", latestRelease.TagName, Version)
-		fmt.Printf(T("version.update_hint", "Use 'gradlex update' to upgrade")+"\n")
+		fmt.Printf(T("version.update_hint", "Use 'gradlex update' to upgrade") + "\n")
 	}
 }
