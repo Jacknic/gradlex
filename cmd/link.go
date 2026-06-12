@@ -1,11 +1,9 @@
 package cmd
 
 import (
-	"io"
 	"log"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -42,63 +40,12 @@ var linkCmd = &cobra.Command{
 		toPathLck := targetDir + "/" + fileNameDir + ".zip.lck"
 		toPathOk := targetDir + "/" + fileNameDir + ".zip.ok"
 		toPathPack := targetDir + "/" + fileNameDir[:len(fileNameDir)-4]
-		// 复制文件夹内容
-		copyDirectory(fromPathPack, toPathPack)
-		copyFile(fromPathLck, toPathLck)
-		copyFile(fromPathOk, toPathOk)
+		if err := copyDirectory(fromPathPack, toPathPack); err != nil {
+			log.Fatalf("copy pack failed: %v", err)
+		}
+		if err := copyFiles([][2]string{{fromPathLck, toPathLck}, {fromPathOk, toPathOk}}); err != nil {
+			log.Fatalf("copy marker files failed: %v", err)
+		}
 		log.Println("copy ", "\n", fromPathPack, "=>", toPathPack, "\n", fromPathLck, "=>", toPathLck, "\n", fromPathOk, "=>", toPathOk)
 	},
-}
-
-// 复制文件夹内容
-func copyDirectory(src, dst string) error {
-	// 检查目标目录是否存在，如果不存在则创建
-	if _, err := os.Stat(dst); os.IsNotExist(err) {
-		if err := os.MkdirAll(dst, 0755); err != nil {
-			return err
-		}
-	}
-
-	// 遍历源目录中的所有文件和子目录
-	entries, err := os.ReadDir(src)
-	if err != nil {
-		return err
-	}
-
-	for _, entry := range entries {
-		srcPath := filepath.Join(src, entry.Name())
-		dstPath := filepath.Join(dst, entry.Name())
-
-		// 如果是目录，则递归复制
-		if entry.IsDir() {
-			if err := copyDirectory(srcPath, dstPath); err != nil {
-				return err
-			}
-		} else {
-			// 如果是文件，则复制文件内容
-			copyFile(srcPath, dstPath)
-		}
-	}
-
-	return nil
-}
-
-// 复制文件内容
-func copyFile(src, dst string) error {
-	srcFile, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer srcFile.Close()
-
-	dstFile, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer dstFile.Close()
-
-	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		return err
-	}
-	return nil
 }

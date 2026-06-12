@@ -111,8 +111,9 @@ func executeGradleInstall(version, distType, downloadUrl string, force bool) {
 	unzip(zipFilePath, targetDir)
 	log.Println("remove file:", zipFilePath)
 	os.Remove(zipFilePath)
-	os.Create(targetDir + "/" + zipFileName + ".lck")
-	os.Create(targetDir + "/" + zipFileName + ".ok")
+	if err := createMarkerFiles(targetDir, zipFileName); err != nil {
+		log.Fatalf("create marker files failed: %v", err)
+	}
 	if distType == "all" {
 		copyAllToBinDist(version, targetDir, downloadUrl)
 	}
@@ -203,14 +204,8 @@ func copyBinFromAllDist(version, targetDir string) bool {
 		return false
 	}
 
-	lckPath := filepath.Join(targetDir, fmt.Sprintf("gradle-%s-bin.zip.lck", version))
-	okPath := filepath.Join(targetDir, fmt.Sprintf("gradle-%s-bin.zip.ok", version))
-	if _, err := os.Create(lckPath); err != nil {
-		log.Printf("create lock file failed: %v", err)
-		return false
-	}
-	if _, err := os.Create(okPath); err != nil {
-		log.Printf("create ok file failed: %v", err)
+	if err := createMarkerFiles(targetDir, binZipFileName); err != nil {
+		log.Printf("create marker files failed: %v", err)
 		return false
 	}
 
@@ -294,14 +289,8 @@ func copyAllToBinDist(version, allTargetDir, allDownloadUrl string) bool {
 		return false
 	}
 
-	lckPath := filepath.Join(binTargetDir, binZipFileName+".lck")
-	okPath := filepath.Join(binTargetDir, binZipFileName+".ok")
-	if _, err := os.Create(lckPath); err != nil {
-		log.Printf("create bin lock file failed: %v", err)
-		return false
-	}
-	if _, err := os.Create(okPath); err != nil {
-		log.Printf("create bin ok file failed: %v", err)
+	if err := createMarkerFiles(binTargetDir, binZipFileName); err != nil {
+		log.Printf("create bin marker files failed: %v", err)
 		return false
 	}
 
