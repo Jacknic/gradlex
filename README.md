@@ -24,69 +24,8 @@ curl -fsSL https://raw.githubusercontent.com/Jacknic/gradlex/master/scripts/inst
 #### Windows (PowerShell)
 
 ```powershell
-Invoke-WebRequest -Uri https://raw.githubusercontent.com/Jacknic/gradlex/master/scripts/install-windows.ps1 -OutFile install.ps1; .\install.ps1; del install.ps1
+iwr https://raw.githubusercontent.com/Jacknic/gradlex/master/scripts/install-windows.ps1
 ```
-
-### 手动命令行下载
-
-#### Linux
-
-```bash
-# 下载并解压最新 Linux amd64 release
-url=$(curl -s https://api.github.com/repos/Jacknic/gradlex/releases/latest \
-	| grep "browser_download_url" | grep "linux-amd64" | head -n1 | cut -d '"' -f4)
-curl -L "$url" -o gradlex-linux-amd64.tar.gz
-tar -xf gradlex-linux-amd64.tar.gz
-rm gradlex-linux-amd64.tar.gz
-sudo mv gradlex /usr/local/bin/
-```
-
-#### macOS
-
-```bash
-# 下载并解压最新 macOS (amd64) release
-url=$(curl -s https://api.github.com/repos/Jacknic/gradlex/releases/latest \
-	| grep "browser_download_url" | grep "darwin-amd64" | head -n1 | cut -d '"' -f4)
-curl -L "$url" -o gradlex-darwin-amd64.tar.gz
-tar -xf gradlex-darwin-amd64.tar.gz
-rm gradlex-darwin-amd64.tar.gz
-sudo mv gradlex /usr/local/bin/
-```
-
-##### M1/M2 芯片版本：
-
-```bash
-# 下载并解压最新 macOS (arm64) release
-url=$(curl -s https://api.github.com/repos/Jacknic/gradlex/releases/latest \
-	| grep "browser_download_url" | grep "darwin-arm64" | head -n1 | cut -d '"' -f4)
-curl -L "$url" -o gradlex-darwin-arm64.tar.gz
-tar -xf gradlex-darwin-arm64.tar.gz
-rm gradlex-darwin-arm64.tar.gz
-sudo mv gradlex /usr/local/bin/
-```
-
-#### Windows
-
-PowerShell 中：
-
-```powershell
-# 使用 PowerShell 获取并下载最新 Windows amd64 release
-$url = (Invoke-RestMethod -UseBasicParsing https://api.github.com/repos/Jacknic/gradlex/releases/latest).assets |
-	Where-Object { $_.browser_download_url -match 'windows-amd64' } | Select-Object -First 1 -ExpandProperty browser_download_url
-Invoke-WebRequest -Uri $url -OutFile gradlex-windows-amd64.zip
-Expand-Archive -Path gradlex-windows-amd64.zip -DestinationPath .
-Remove-Item gradlex-windows-amd64.zip
-```
-
-CMD 中：
-
-```bat
-:: 在 CMD 中使用 PowerShell 获取下载地址，然后用 curl 下载并解压
-for /f "delims=" %u in ('powershell -Command "(Invoke-RestMethod https://api.github.com/repos/Jacknic/gradlex/releases/latest).assets | Where-Object {$_.browser_download_url -match 'windows-amd64'} | Select-Object -First 1 -ExpandProperty browser_download_url"') do (
-	curl -L %u -o gradlex-windows-amd64.zip && tar -xf gradlex-windows-amd64.zip && del gradlex-windows-amd64.zip
-)
-```
-
 
 ## 配置
 
@@ -162,10 +101,10 @@ gradlex i https://services.gradle.org/distributions/gradle-8.7-rc-3-bin.zip
 
 ```bash
 # 在当前目录查找并安装（会向上级目录查找 gradle/wrapper/gradle-wrapper.properties）
-gradlex wrapper
+gradlex w
 
 # 指定工作目录（从指定目录开始往上查找）
-gradlex wrapper -f /path/to/project
+gradlex w -f /path/to/project
 ```
 
 `wrapper` 命令会从 `gradle-wrapper.properties` 中读取 `distributionUrl`，提取版本号（如 `gradle-8.5-bin.zip` 中的 `8.5`）和分发类型（`bin` 或 `all`），然后按照已有的下载和解压逻辑安装到 `GRADLE_USER_HOME/wrapper/dists` 下。该命令同样支持镜像加速（通过 `GRADLE_DIST_PROXY` 环境变量或 `gradlex_config.json` 配置）。
