@@ -24,7 +24,7 @@ curl -fsSL https://raw.githubusercontent.com/Jacknic/gradlex/master/scripts/inst
 #### Windows (PowerShell)
 
 ```powershell
-iwr https://raw.githubusercontent.com/Jacknic/gradlex/master/scripts/install-windows.ps1
+iwr https://raw.githubusercontent.com/Jacknic/gradlex/master/scripts/install-windows.ps1 | iex
 ```
 
 ## 配置
