@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 
@@ -77,7 +78,7 @@ func executeGradleInstall(version, distType, downloadUrl string, force bool) {
 	// 检查是否已安装该版本
 	if !force && isGradleInstalled(targetDir, zipFileName) {
 		fmt.Printf(T("install.already_installed", "Gradle %s-%s already installed, skip download")+"\n", version, distType)
-		fmt.Printf(T("install.force_hint", "Use -f/--force flag to re-download")+"\n")
+		fmt.Printf(T("install.force_hint", "Use -f/--force flag to re-download") + "\n")
 		fmt.Printf(T("install.install_dir", "Install directory: %s")+"\n", targetDir)
 		return
 	}
@@ -197,20 +198,24 @@ func unzip(src, dest string) error {
 
 		// 如果是文件夹，则创建文件夹
 		if file.FileInfo().IsDir() {
-			if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
+			if err := os.MkdirAll(filePath, dirMode(file)); err != nil {
 				return err
 			}
 			continue
 		}
 
-		// 如果是文件，则解压文件
+		// 如果是文件，确保父目录存在后再解压
+		if err := os.MkdirAll(filepath.Dir(filePath), dirMode(file)); err != nil {
+			return err
+		}
+
 		rc, err := file.Open()
 		if err != nil {
 			return err
 		}
 
 		// 创建目标文件
-		outFile, err := os.Create(filePath)
+		outFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, fileMode(file))
 		if err != nil {
 			rc.Close()
 			return err
@@ -229,7 +234,59 @@ func unzip(src, dest string) error {
 		rc.Close()
 	}
 
+	// 按平台为 Gradle 命令入口及 gradlew 脚本赋予可执行权限
+	setGradleExecutable(dest)
+
 	return nil
+}
+
+// fileMode 返回解压文件的 Unix 权限位，类 Unix 平台优先采用 zip 头中记录的模式。
+func fileMode(file *zip.File) os.FileMode {
+	if runtime.GOOS == "windows" {
+		return 0644
+	}
+	if mode := file.Mode(); mode != 0 {
+		return mode.Perm()
+	}
+	return 0644
+}
+
+// dirMode 返回解压目录的 Unix 权限位。
+func dirMode(file *zip.File) os.FileMode {
+	if runtime.GOOS == "windows" {
+		return 0755
+	}
+	if mode := file.Mode(); mode != 0 {
+		return mode.Perm()
+	}
+	return 0755
+}
+
+// setGradleExecutable 在非 Windows 平台为 Gradle 命令及 gradlew 脚本赋予可执行权限。
+// 解压后的顶层目录为 gradle-<version>/，故以 bin/gradle 结尾的文件（不论版本前缀）作为 Gradle 入口。
+func setGradleExecutable(dest string) {
+	if runtime.GOOS == "windows" {
+		return
+	}
+
+	err := filepath.WalkDir(dest, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		name := d.Name()
+		if name == "gradlew" || strings.HasSuffix(path, filepath.Join("bin", "gradle")) {
+			if chmodErr := os.Chmod(path, 0755); chmodErr != nil {
+				log.Printf("set executable failed: %s: %v", path, chmodErr)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		log.Printf("set executable walk failed: %v", err)
+	}
 }
 
 type WriteCounter struct {
