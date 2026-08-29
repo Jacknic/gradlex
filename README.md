@@ -95,6 +95,14 @@ gradlex i -v 8.2 -t bin
 gradlex i https://services.gradle.org/distributions/gradle-8.7-rc-3-bin.zip
 ```
 
+### 链接已下载的 Gradle 版本
+
+如果本地已缓存某个 Gradle 发行版，`gradlex link` 可以复用该缓存，并将其映射到新的分发地址对应的目录，从而避免重复下载。
+
+```bash
+gradlex link ~/.gradle/wrapper/dists/gradle-8.8-all/6gdy1pgp427xkqcjbxw3ylt6h https://services.gradle.org/distributions/gradle-8.3-bin.zip
+```
+
 ### 从项目的 `gradle-wrapper.properties` 自动安装
 
 如果你的项目使用了 Gradle Wrapper，项目依赖的 Gradle 版本通常在 `gradle/wrapper/gradle-wrapper.properties` 文件中指定。`gradlex` 提供了 `wrapper` 子命令来自动解析该文件并下载安装对应的 Gradle 版本。
