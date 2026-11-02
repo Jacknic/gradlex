@@ -21,6 +21,7 @@ var buildVersion string
 var buildType string
 var zipUrl string
 var forceDownload bool
+var copyToBin bool
 
 func init() {
 	installCmd.Aliases = []string{"i"}
@@ -28,6 +29,7 @@ func init() {
 	installCmd.Flags().StringVarP(&buildType, "type", "t", "all", "Gradle type")
 	installCmd.Flags().StringVarP(&zipUrl, "url", "u", "", "Download URL")
 	installCmd.Flags().BoolVarP(&forceDownload, "force", "f", false, "Force download even if version is already installed")
+	installCmd.Flags().BoolVarP(&copyToBin, "copy-bin", "c", false, "For all type install, also copy to the corresponding bin path")
 	rootCmd.AddCommand(installCmd)
 }
 
@@ -56,7 +58,7 @@ var installCmd = &cobra.Command{
 			linkRaw = zipUrl
 		}
 
-		executeGradleInstall(buildVersion, buildType, linkRaw, forceDownload)
+		executeGradleInstall(buildVersion, buildType, linkRaw, forceDownload, copyToBin)
 	},
 }
 
@@ -68,9 +70,10 @@ var installCmd = &cobra.Command{
 // If force is false, skips download if the version is already installed.
 // 对于 bin 类型请求，尝试从现有 all 发行版复制。
 // For bin type requests, attempts to copy from existing all distribution if available.
-// 对于 all 类型安装，自动复制到对应的 bin 路径。
-// For all type installations, automatically copies to the corresponding bin path.
-func executeGradleInstall(version, distType, downloadUrl string, force bool) {
+// 对于 all 类型安装，可通过 copyToBin 参数控制是否复制到对应的 bin 路径。
+// For all type installations, the copyToBin parameter controls whether to copy
+// to the corresponding bin path.
+func executeGradleInstall(version, distType, downloadUrl string, force bool, copyToBin bool) {
 	zipFileName := fmt.Sprintf("gradle-%s-%s.zip", version, distType)
 
 	// link := "https://mirrors.cloud.tencent.com/gradle/" + zipFileName
@@ -115,7 +118,7 @@ func executeGradleInstall(version, distType, downloadUrl string, force bool) {
 	if err := createMarkerFiles(targetDir, zipFileName); err != nil {
 		log.Fatalf("create marker files failed: %v", err)
 	}
-	if distType == "all" {
+	if distType == "all" && copyToBin {
 		copyAllToBinDist(version, targetDir, downloadUrl)
 	}
 	log.Println("finish")

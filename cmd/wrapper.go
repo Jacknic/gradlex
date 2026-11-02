@@ -14,10 +14,12 @@ import (
 
 var workDir string
 var wrapperForce bool
+var wrapperCopyBin bool
 
 func init() {
 	wrapperCmd.Flags().StringVarP(&workDir, "path", "p", ".", "Working directory")
 	wrapperCmd.Flags().BoolVarP(&wrapperForce, "force", "f", false, "Force download even if version is already installed")
+	wrapperCmd.Flags().BoolVarP(&wrapperCopyBin, "copy-bin", "c", false, "For all type install, also copy to the corresponding bin path")
 	wrapperCmd.Aliases = []string{"w"}
 	rootCmd.AddCommand(wrapperCmd)
 }
@@ -64,7 +66,7 @@ var wrapperCmd = &cobra.Command{
 		log.Printf("Extracted version: %s, type: %s\n", version, distType)
 
 		// 执行下载和安装
-		executeGradleInstall(version, distType, distributionUrl, wrapperForce)
+		executeGradleInstall(version, distType, distributionUrl, wrapperForce, wrapperCopyBin)
 	},
 }
 
