@@ -58,7 +58,7 @@ var installCmd = &cobra.Command{
 			linkRaw = zipUrl
 		}
 
-		executeGradleInstall(buildVersion, buildType, linkRaw, forceDownload, copyToBin)
+		executeGradleInstall(buildVersion, buildType, linkRaw, forceDownload, copyToBin, false)
 	},
 }
 
@@ -73,7 +73,7 @@ var installCmd = &cobra.Command{
 // 对于 all 类型安装，可通过 copyToBin 参数控制是否复制到对应的 bin 路径。
 // For all type installations, the copyToBin parameter controls whether to copy
 // to the corresponding bin path.
-func executeGradleInstall(version, distType, downloadUrl string, force bool, copyToBin bool) {
+func executeGradleInstall(version, distType, downloadUrl string, force bool, copyToBin bool, downloadSrc bool) {
 	zipFileName := fmt.Sprintf("gradle-%s-%s.zip", version, distType)
 
 	// link := "https://mirrors.cloud.tencent.com/gradle/" + zipFileName
@@ -92,12 +92,14 @@ func executeGradleInstall(version, distType, downloadUrl string, force bool, cop
 		fmt.Printf(T("install.already_installed", "Gradle %s-%s already installed, skip download")+"\n", version, distType)
 		fmt.Printf(T("install.force_hint", "Use -f/--force flag to re-download") + "\n")
 		fmt.Printf(T("install.install_dir", "Install directory: %s")+"\n", targetDir)
+		downloadSrcIfRequested(distType, version, downloadUrl, targetDir, force, downloadSrc)
 		return
 	}
 
 	// 如果请求 bin 包但本地已有 all 包，则直接复制 all 到 bin，避免重新下载
 	if distType == "bin" && !isGradleInstalled(targetDir, zipFileName) {
 		if copyBinFromAllDist(version, targetDir) {
+			downloadSrcIfRequested(distType, version, downloadUrl, targetDir, force, downloadSrc)
 			return
 		}
 	}
@@ -122,6 +124,78 @@ func executeGradleInstall(version, distType, downloadUrl string, force bool, cop
 		copyAllToBinDist(version, targetDir, downloadUrl)
 	}
 	log.Println("finish")
+	downloadSrcIfRequested(distType, version, downloadUrl, targetDir, force, downloadSrc)
+}
+
+// downloadSrcIfRequested 如果当前下载的是 bin 类型且指定了 downloadSrc，则额外下载对应版本的 src 源码发行版，
+// 并解压到 bin 安装目录内（gradle-<version>/src/），与 bin 的 bin/、lib/ 等并列。
+// If the current download is of type bin and downloadSrc is set, additionally downloads the src
+// distribution of the same version and extracts it into the bin install directory (gradle-<version>/src/),
+// alongside the bin package's bin/, lib/ and other directories.
+func downloadSrcIfRequested(distType, version, downloadUrl, targetDir string, force bool, downloadSrc bool) {
+	if distType != "bin" || !downloadSrc {
+		return
+	}
+
+	srcZipFileName := fmt.Sprintf("gradle-%s-src.zip", version)
+
+	// bin 包目录：<hash>/gradle-<version>/
+	binPackDir := filepath.Join(targetDir, "gradle-"+version)
+	// src 目标目录：<hash>/gradle-<version>/src/
+	srcDestDir := filepath.Join(binPackDir, "src")
+	// 完成标记随 bin 标记一起放在 hash 目录下，避免重复下载
+	srcOkFile := targetDir + "/" + srcZipFileName + ".ok"
+	if !force {
+		if _, err := os.Stat(srcOkFile); err == nil {
+			fmt.Printf(T("install.already_installed", "Gradle %s-src already installed, skip download")+"\n", version)
+			fmt.Printf(T("install.install_dir", "Install directory: %s")+"\n", srcDestDir)
+			return
+		}
+	}
+
+	// 默认与 bin.zip 同目录：将 bin 下载地址中的 bin 包文件名替换为 src 包文件名
+	binZipFileName := fmt.Sprintf("gradle-%s-bin.zip", version)
+	srcDownloadUrl := strings.Replace(downloadUrl, binZipFileName, srcZipFileName, 1)
+	if srcDownloadUrl == downloadUrl {
+		// 未能从 bin 地址直接替换（例如带查询参数等），回退到官方 distributions 目录
+		srcDownloadUrl = "https://services.gradle.org/distributions/" + srcZipFileName
+	}
+
+	link := srcDownloadUrl
+	if len(getGradleDistProxy()) > 0 {
+		fmt.Printf(T("install.use_proxy", "use proxy: %s")+"\n", getGradleDistProxy())
+		link = getGradleDistProxy() + srcZipFileName
+	}
+
+	linkHash := getLinkMd5(link)
+	zipFilePath := getGradleUserHome() + "/" + linkHash + ".zip"
+	log.Println(link + " download from \n" + link + " => save to " + zipFilePath)
+
+	if err := downloadFile(link, zipFilePath); err != nil {
+		panic(err)
+	}
+
+	// src 发行版解压后顶层为 gradle-<version>/（内含完整源码树，并非 gradle-<version>/src/），
+	// 这里直接解压并剥掉顶层 gradle-<version>/ 前缀，写入 bin 包目录下的 src/，
+	// 最终形成 gradle-<version>/src/（与 bin/、lib/ 并列），无需临时目录与重命名。
+	if err := os.RemoveAll(srcDestDir); err != nil {
+		log.Fatalf("remove old src dir failed: %v", err)
+	}
+	if err := os.MkdirAll(binPackDir, 0o755); err != nil {
+		log.Fatalf("create bin pack dir failed: %v", err)
+	}
+
+	log.Println("unzip src to ", srcDestDir)
+	if err := unzipStripTop(zipFilePath, srcDestDir); err != nil {
+		log.Fatalf("unzip src failed: %v", err)
+	}
+	log.Println("remove file:", zipFilePath)
+	os.Remove(zipFilePath)
+
+	if err := createMarkerFiles(targetDir, srcZipFileName); err != nil {
+		log.Fatalf("create src marker files failed: %v", err)
+	}
+	log.Printf("src finish: %s\n", srcDestDir)
 }
 
 // isGradleInstalled 检查指定的 Gradle 版本是否已安装
@@ -415,6 +489,71 @@ func unzip(src, dest string) error {
 	// 按平台为 Gradle 命令入口及 gradlew 脚本赋予可执行权限
 	setGradleExecutable(dest)
 
+	return nil
+}
+
+// unzipStripTop 解压 zip 文件到 dest，但剥掉每个条目的顶层目录前缀
+// （例如 gradle-<version>/）。适用于 src 发行版：其条目为 gradle-<version>/...
+// 剥掉前缀后直接落到 dest（即 bin 包目录下的 src/），形成 gradle-<version>/src/。
+func unzipStripTop(src, dest string) error {
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	if err := os.MkdirAll(dest, 0o755); err != nil {
+		return err
+	}
+
+	for _, file := range r.File {
+		// 去掉顶层目录（gradle-<version>/），保留其余相对路径
+		parts := strings.SplitN(file.Name, "/", 2)
+		if len(parts) < 2 {
+			continue // 顶层目录本身，跳过
+		}
+		rel := parts[1]
+		if rel == "" {
+			continue
+		}
+
+		// 防范 zip 路径穿越
+		filePath := filepath.Join(dest, rel)
+		if relPath, err := filepath.Rel(dest, filePath); err != nil || relPath == ".." || strings.HasPrefix(relPath, ".."+string(os.PathSeparator)) {
+			return fmt.Errorf("invalid zip entry path: %s", file.Name)
+		}
+
+		if file.FileInfo().IsDir() {
+			if err := os.MkdirAll(filePath, dirMode(file)); err != nil {
+				return err
+			}
+			continue
+		}
+
+		if err := os.MkdirAll(filepath.Dir(filePath), dirMode(file)); err != nil {
+			return err
+		}
+
+		rc, err := file.Open()
+		if err != nil {
+			return err
+		}
+
+		outFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, fileMode(file))
+		if err != nil {
+			rc.Close()
+			return err
+		}
+
+		_, err = io.Copy(outFile, rc)
+		outFile.Close()
+		rc.Close()
+		if err != nil {
+			return err
+		}
+	}
+
+	setGradleExecutable(dest)
 	return nil
 }
 
