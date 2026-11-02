@@ -1,4 +1,4 @@
-.PHONY: build build-with-version clean help
+.PHONY: build build-with-version build-all clean help
 
 # 获取版本信息
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -14,10 +14,16 @@ LDFLAGS := -ldflags "\
 	-X 'github.com/jacknic/gradlex/cmd.GitCommit=$(GIT_COMMIT)' \
 	-X 'github.com/jacknic/gradlex/cmd.BuildTime=$(BUILD_TIME)'"
 
+# 需要构建的目标平台，格式为 "os/arch"
+PLATFORMS ?= linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64
+# 构建产物输出目录
+DIST_DIR ?= dist
+
 help:
 	@echo "Available targets:"
 	@echo "  build              - Build with version info"
 	@echo "  build-dev          - Build dev version"
+	@echo "  build-all          - Cross compile for all platforms ($(PLATFORMS))"
 	@echo "  clean              - Clean build artifacts"
 
 build: build-with-version
@@ -34,6 +40,21 @@ build-dev:
 	@echo "Building dev version..."
 	go build
 
+# 交叉编译各个平台的可执行文件
+build-all:
+	@mkdir -p $(DIST_DIR)
+	@for platform in $(PLATFORMS); do \
+		os=$${platform%/*}; \
+		arch=$${platform#*/}; \
+		ext=""; \
+		if [ "$$os" = "windows" ]; then ext=".exe"; fi; \
+		output="$(DIST_DIR)/gradlex-$$os-$$arch$$ext"; \
+		echo "Building $$output ..."; \
+		GOOS=$$os GOARCH=$$arch go build $(LDFLAGS) -o $$output; \
+	done
+	@echo "All platforms built into $(DIST_DIR)/"
+
 clean:
 	rm -f gradlex
 	rm -f gradlex.exe
+	rm -rf $(DIST_DIR)
